@@ -39,7 +39,7 @@ func (repo *AuctionRepository) FindAuctions(
 	productName string) ([]auction_entity.Auction, *internal_error.InternalError) {
 	filter := bson.M{}
 
-	if status != 0 {
+	if status == auction_entity.Active || status == auction_entity.Completed {
 		filter["status"] = status
 	}
 

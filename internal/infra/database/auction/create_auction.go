@@ -5,6 +5,9 @@ import (
 	"fullcycle-auction_go/configuration/logger"
 	"fullcycle-auction_go/internal/entity/auction_entity"
 	"fullcycle-auction_go/internal/internal_error"
+	"go.mongodb.org/mongo-driver/bson"
+	"os"
+	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -46,5 +49,29 @@ func (ar *AuctionRepository) CreateAuction(
 		return internal_error.NewInternalServerError("Error trying to insert auction")
 	}
 
+	go func() {
+		select {
+		case <-time.After(getAuctionInterval()):
+			update := bson.M{"$set": bson.M{"status": auction_entity.Completed}}
+			filter := bson.M{"_id": auctionEntityMongo.Id}
+
+			_, err = ar.Collection.UpdateOne(ctx, filter, update)
+			if err != nil {
+				logger.Error("Error trying to update auction", err)
+				return
+			}
+		}
+	}()
+
 	return nil
+}
+
+func getAuctionInterval() time.Duration {
+	auctionInterval := os.Getenv("AUCTION_INTERVAL")
+	duration, err := time.ParseDuration(auctionInterval)
+	if err != nil {
+		return time.Minute * 5
+	}
+
+	return duration
 }
